@@ -1,8 +1,8 @@
-# Tendencia e Sazonalidade
+# Tendência e Sazonalidade
 
 ---
 
-Esse foi um trabalho apresentado na máteria de séries temporais, com o objetivo de compreender e aplicar as tecnicas para análisar a tendencia e a sazonalidade de um conjunto de dados
+Esse foi um trabalho apresentado na matéria de séries temporais, com o objetivo de compreender e aplicar as técnicas para analisar a tendência e a sazonalidade de um conjunto de dados
 
 ### Autores: 
 
