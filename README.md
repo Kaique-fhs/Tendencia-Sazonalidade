@@ -9,3 +9,5 @@ Esse foi um trabalho apresentado na matéria de séries temporais, com o objetiv
 - Igor Kuivjogi
 - Kaíque Ferreira
 - Nilo Célio
+
+Link da apresentação: https://kaique-fhs.github.io/Tendencia-Sazonalidade/
