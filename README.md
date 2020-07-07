@@ -9,3 +9,4 @@ Esse foi um trabalho apresentado na matéria de séries temporais, com o objetiv
 - Igor Kuivjogi
 - Kaíque Ferreira
 - Nilo Célio
+ 
