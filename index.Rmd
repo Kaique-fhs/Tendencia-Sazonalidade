@@ -1,0 +1,476 @@
+---
+title: "Tendência e Sazonalidade"
+output:
+  html_document:
+    toc: true
+    toc_depth: 4
+    toc_float: TRUE
+---
+
+<html>
+<body>
+<style>
+
+h1.title {
+  display: none;
+}
+
+div.a {
+	text-align: center;
+}
+
+</style>
+
+<div class="a">
+
+<font color="white"><p> . </p></font>
+
+# Séries Temporais
+#### Igor Kuivjogi / Kaíque Ferreira / Nilo Célio
+#### <b> 1° Trablho de Séries Temporais <b>
+##### 07 de Julho de 2020
+
+<font color="white"><p> . </p></font>
+
+</div>
+
+
+```{r setup, echo = FALSE, warning = FALSE, message=FALSE}
+# Carregando Bibliotecas
+
+library(tidyverse)
+library(ggpmisc)
+library(knitr)
+library(kableExtra)
+library(lubridate)
+library(zoo)
+library(httr)
+#library(xlsx)
+library(readxl)
+library(fpp2)
+library(tidyr)
+
+# Pacote para %<>%
+library(magrittr)
+
+# Pacote para gráfico ggplot2
+#library(devtools)
+#install_github("thomasp85/patchwork")
+library(patchwork)
+```
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE}
+### Carregando Dados
+
+# Carregando dados M-ICV
+url = 'https://www.ime.usp.br/~pam/ICV.xls'
+a = GET(url, write_disk( tf <- tempfile(fileext = ".xls")))
+Dados_ICV =  as_tibble(read_excel(tf))
+```
+
+# Tendência
+
+<hr/>
+
+Neste trabalho veremos as três seguintes formas de retirar a tendência de um série temporal
+
+- Diferenciação
+- Médias Móveis
+- Lowess
+- Médias Móveis VS Lowess
+
+### Diferenciação
+
+<hr/>
+
+Aplicaremos diferenciação no histórico do IBOVESPA nas seguintes variáveis
+
+- Temos 1499 observações
+- Data: Dias 3 de janeiro de 1995 a 27 de dezembro de 2000
+- Pontos do índice IBOVESPA diário
+
+Vejamos a série de dados:
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE, out.width = "70%", fig.align = "center"}
+# Carregando dados IBV
+url = 'https://www.ime.usp.br/~pam/D-IBV'
+a = GET(url, write_disk( tf <- tempfile(fileext = ".xls")))
+Dados_IBV =  as_tibble(read_table(tf, col_names = FALSE ))
+Dados_IBV %<>% 
+  mutate(tempo = 1:nrow(Dados_IBV))
+
+# Gráfico da série
+ggplot(Dados_IBV, aes(x = tempo, y = X1)) + 
+  labs(title = "Dados Ibovespa",
+  subtitle = "",
+  x="Dias",
+  y="Pontos",
+  fill="") +
+  geom_path() + theme_classic()
+```
+
+Agora vamos identificar a diferença entre uma, quatro e sete diferenciações
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE, out.width = "100%"}
+## Tirando a tendencia com diferença
+dif_1 = diff(Dados_IBV$X1, differences=1)
+dif_1 = as_tibble(list(tempo = 1:length(dif_1), dif_1 = dif_1))
+g1 = ggplot(dif_1, aes(x = tempo, y = dif_1)) + 
+  labs(title = "Dados Ibovespa",
+  subtitle = "Uma diferenciação",
+  x="Dias",
+  y="Pontos",
+  fill="") +
+  geom_path() + theme_classic()
+
+dif_2 = diff(Dados_IBV$X1, differences=4)
+dif_2 = as_tibble(list(tempo = 1:length(dif_2), dif_2 = dif_2))
+g2 = ggplot(dif_2, aes(x = tempo, y = dif_2)) +
+  labs(
+  subtitle = "Quatro diferenciações",
+  x="Dias",
+  y="Pontos",
+  fill="") +
+  geom_path() + theme_classic()
+
+dif_3 = diff(Dados_IBV$X1, differences=7)
+dif_3 = as_tibble(list(tempo = 1:length(dif_3), dif_3 = dif_3))
+g3 = ggplot(dif_3, aes(x = tempo, y = dif_3)) +
+  labs(
+  subtitle = "Sete diferenciações",
+  x="Dias",
+  y="Pontos",
+  fill="") +
+  geom_path() + theme_classic()
+
+g1 / g2 / g3
+```
+
+### Médias Móveis
+
+<hr/>
+
+Vamos aplicar médias móveis e Lowess em um mesmo conjunto de dados que fala sobre ICV, índice de custo de vida no município de São Paulo nas seguintes variáveis
+
+- As observações são variações mensais
+- Data: De janeiro de 1984 a outubro de 1996
+
+Vejamos a série de dados e as médias móveis de terceira ordem:
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE, out.width = "100%"}
+# Carregando dados M-ICV
+url = 'https://www.ime.usp.br/~pam/ICV.xls'
+a = GET(url, write_disk( tf <- tempfile(fileext = ".xls")))
+Dados_ICV =  as_tibble(read_excel(tf))
+
+# p do Lowess
+p = 0.08
+
+# Calculando médias móveis com log na resposta
+Dados_ICV %<>%
+  mutate(log_ICV = log(ICV),
+         mm     = ma(ICV, order =  3, centre=TRUE),
+         log_mm = ma(log_ICV, order =  3, centre=TRUE),
+         ICV_mm = ICV - mm,
+         log_ICV_mm = log_ICV - log_mm,
+         lw3     = lowess(`Mes/ano`, ICV, f = p)$y,
+         log_lw3 = lowess(`Mes/ano`, log_ICV, f = p)$y,
+         ICV_lw3 = ICV -lw3,
+         log_ICV_lw3 = log_ICV - log_lw3)
+
+
+
+## Calculando com médias móveis de ordem 3
+g1 = ggplot(Dados_ICV, aes(x = `Mes/ano`, y = ICV)) +
+  geom_path(aes(x = `Mes/ano`, y = mm), col="red") + theme_classic() +
+  labs(title = "Dados ICV",
+  subtitle = "Com m.m. de terceira ordem em vermelho",
+  x="Data",
+  y="ICV",
+  fill="")
+
+g2 = ggplot(Dados_ICV, aes(x = `Mes/ano`, y = log_ICV)) + geom_path() +
+  geom_path(aes(x = `Mes/ano`, y = log_mm), col="red") + theme_classic() +
+  labs(
+  subtitle = "Em logaritmo com m.m. de terceira ordem em vermelho",
+  x="Data",
+  y="log(ICV)",
+  fill="")
+
+(g1 / g2 ) 
+```
+
+
+Tentaremos retirar a tendência a partir do ajuste de médias móveis de terceira ordem, exploremos os resultados
+
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE, out.width = "100%"}
+
+g3 = ggplot(Dados_ICV, aes(x = `Mes/ano`, y = ICV_mm)) + geom_path() + theme_classic() + 
+  labs(title = "Dados ICV sem tendência",
+  subtitle = "Método m.m.",
+  x="Data",
+  y="ICV",
+  fill="")
+
+g4 = ggplot(Dados_ICV, aes(x = `Mes/ano`, y = log_ICV_mm)) + geom_path() + theme_classic() +
+  labs(
+  subtitle = "Com logaritmo por m.m.",
+  x="Data",
+  y="log(ICV)",
+  fill="")
+
+
+  ( g3 / g4 )
+
+```
+
+###  Lowess
+
+<hr/>
+
+Vamos aplicar o método Lowess com p = 0,08 no mesmo conjunto de dados para comparar os resultados
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE, out.width = "100%"}
+
+g1_lw = ggplot(Dados_ICV, aes(x = `Mes/ano`, y = ICV)) +
+  geom_path(col="black") +
+  geom_smooth(method="loess", se=FALSE, span= p, col="blue") +
+  theme_classic() +
+  labs(title = "Dados ICV",
+  subtitle = "Com Lowess considerando p = 0,08",
+  x="Data",
+  y="ICV",
+  fill="")
+
+g2_lw = ggplot(Dados_ICV, aes(x = `Mes/ano`, y = log_ICV)) +
+  geom_path(col="black") +
+  geom_smooth(method="loess", se=FALSE, span= p, col="blue") +
+  theme_classic() +
+  labs(
+  subtitle = "Em logaritmo com Lowess considerando p = 0,08",
+  x="Data",
+  y="ICV",
+  fill="")
+
+(g1_lw / g2_lw ) 
+```
+
+Tentaremos retirar a tendência a partir do ajuste do método Lowess considerando p = 0,08, exploremos os resultados
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE, out.width = "100%"}
+
+g3_lw = ggplot(Dados_ICV, aes(x = `Mes/ano`, y = ICV_lw3)) + geom_path() + theme_classic() + 
+  labs(title = "Dados ICV sem tendência",
+  subtitle = "Método Lowess",
+  x="Data",
+  y="ICV",
+  fill="")
+
+g4_lw = ggplot(Dados_ICV, aes(x = `Mes/ano`, y = log_ICV_lw3)) + geom_path() + theme_classic() +
+  labs(
+  subtitle = "Com logaritmo por Lowess",
+  x="Data",
+  y="log(ICV)",
+  fill="")
+
+
+( g3_lw / g4_lw )
+
+```
+
+### Médias Móveis VS Lowess
+
+<hr/>
+
+Vamos explorar esses gráficos que comparam as médias móveis de terceira ordem e o método Lowess com p = 0,08
+
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE, out.width = "100%"}
+
+(g3  | g4 ) /( g3_lw | g4_lw )
+
+```
+
+Nesse gráfico abaixo conseguimos ver de forma bem mais clara como é a construção das médias móveis em um conjunto de dados referente a produção física industrial nas seguintes variáveis:
+
+- Produção física industrial total mensal
+- Data: Mês de janeiro de 1991 a julho de 2000
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE, out.width = "100%"}
+
+# Carregando dados PFI
+url = 'https://www.ime.usp.br/~pam/PFI.XLS'
+a = GET(url, write_disk( tf <- tempfile(fileext = ".xls")))
+Dados_PFI =  as_tibble(read_excel(tf, col_names = F))
+
+names(Dados_PFI) = c("tempo", "PFI")
+
+Dados_PFI %<>% 
+  mutate(mm1 = ma(PFI, order =  2, centre=TRUE),
+         mm2 = ma(PFI, order =  6, centre=TRUE),
+         mm3 = ma(PFI, order =  13, centre=TRUE))
+
+# Gráfico da série com médias móveis
+g1 = ggplot(Dados_PFI, aes(x = tempo, y = PFI)) +
+  geom_path() +
+  geom_path(aes(x = `tempo`, y = mm1), col="red", ) + theme_classic() + 
+  labs(title = "Dados PFI",
+  subtitle = "Método m.m. de ordem 2",
+  x="Meses",
+  y="PFI",
+  fill="")
+
+g2 = ggplot(Dados_PFI, aes(x = tempo, y = PFI)) +
+  geom_path() +
+  geom_path(aes(x = `tempo`, y = mm2), col="blue") + theme_classic() + 
+  labs(
+  subtitle = "Método m.m. de ordem 6",
+  x="Meses",
+  y="PFI",
+  fill="")
+
+g3 = ggplot(Dados_PFI, aes(x = tempo, y = PFI)) +
+  geom_path() +
+  geom_path(aes(x = `tempo`, y = mm3), col="green") +theme_classic() + 
+  labs(
+  subtitle = "Método m.m. de ordem 13",
+  x="Meses",
+  y="PFI",
+  fill="")
+
+g1 / g2 / g3
+
+```
+
+Nesse gráfico abaixo conseguimos ver de forma bem mais clara como é a construção do método Lowess utilizando o mesmo conjunto de dados PFI
+
+```{r, echo = FALSE, warning = FALSE, message=FALSE, out.width = "100%"}
+
+# Gráfico da série com Lowess
+g1_lw0 = ggplot(Dados_PFI, aes(x = tempo, y = PFI)) +
+  geom_path() +
+  geom_smooth(method="loess", se=FALSE, span= .03, col="blue") + theme_classic() + 
+  labs(title = "Dados PFI",
+  subtitle = "Método Lowess sendo p = 0,03",
+  x="Meses",
+  y="PFI",
+  fill="")
+
+g2_lw1 = ggplot(Dados_PFI, aes(x = tempo, y = PFI)) +
+  geom_path() +
+  geom_smooth(method="loess", se=FALSE, span= .1, col="blue") + theme_classic() + 
+  labs(
+  subtitle = "Método Lowess sendo p = 0,1",
+  x="Meses",
+  y="PFI",
+  fill="")
+
+g3_lw2 = ggplot(Dados_PFI, aes(x = tempo, y = PFI)) +
+  geom_path() +
+  geom_smooth(method="loess", se=FALSE, span= .5, col="blue") +theme_classic() + 
+  labs(
+  subtitle = "Método Lowess sendo p = 0,5",
+  x="Meses",
+  y="PFI",
+  fill="")
+
+g1_lw0 / g2_lw1 / g3_lw2
+
+```
+
+
+# Sazonalidade
+
+****
+
+### Manchas solares de Wolf
+```{r, echo = F}
+
+url <- 'https://www.ime.usp.br/~pam/MANCHAS.XLS'
+a <- GET(url, write_disk( tf <- tempfile(fileext = ".xls")))
+tab_manchas <- as_tibble(read_excel(tf)) %>% 
+  mutate(tempo = 1:nrow(.))
+
+summary(tab_manchas)
+
+```
+
+Temos uma série temporal compreendida entre 1749 a 1924 (176 anos).
+
+### Número de Wolf    
+O número de Wolf (também conhecido como número internacional de mancha solar, número relativo de mancha solar ou número de Zurique) é um valor que indica o número de manchas solares e grupos de manchas solares presentes na superfície do Sol.      
+A ideia de calcular o número de manchas solares se origina em Rudolf Wolf, em 1848, em Zurique, Suíça.     
+**Fonte**: https://pt.wikipedia.org/wiki/N%C3%BAmero_de_Wolf
+
+
+### Gŕafico da série temporal
+```{r, echo = F, fig.asp = 0.5}
+
+tab_manchas %>% 
+  ggplot(aes(x = Ano, y = manchas)) +
+  geom_line() +
+  labs(x = 'ano', y = 'manchas', title = 'Número de manchas solares') +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  theme_classic()
+
+```
+    
+É possível notar que há uma certa sazonalidade, porém não parece haver tendência na série temporal.     
+Vamos tentar modelar a componente de sazonalidade.     
+
+
+### Média móvel de ordem 3
+```{r, echo = F, warning = F, message = F, fig.asp = 0.8}
+
+ordem <- 3
+
+p1 <- tab_manchas %>% 
+  mutate(mm3 = ma(manchas, order = ordem, centre = T)) %>%
+  ggplot(aes(x = Ano)) +
+  geom_line(aes(y = manchas)) +
+  geom_line(aes(y = mm3), color = 'red') +
+  labs(x = 'ano', y = 'manchas', title = paste0('Média móvel de ordem ', ordem)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  theme_classic()
+
+p2 <- tab_manchas %>% 
+  mutate(mm3 = as.double(ma(manchas, order = ordem, centre = T))) %>%
+  mutate(serie_sem_sazonalidade = manchas - mm3) %>%
+  ggplot(aes(x = Ano)) +
+  geom_line(aes(y = serie_sem_sazonalidade), color = 'blue') +
+  labs(x = 'ano', y = 'manchas', title = expression(Z[t] - hat(S[t]))) +
+  theme_classic() + 
+  theme(legend.position = 'bottom')
+
+p1 / p2
+
+```
+
+
+### Modelo LOWESS para p = 0.03
+```{r, echo = F, warning = F, message = F, fig.asp = 0.8}
+
+f <- 0.03
+
+p3 <- tab_manchas %>% 
+  mutate(pred = lowess(manchas, f = f)$y) %>%
+  ggplot(aes(x = Ano)) +
+  geom_line(aes(y = manchas)) +
+  geom_line(aes(y = pred), color = 'red') +
+  labs(x = 'ano', y = 'manchas', title = paste0('LOWESS com p = ', f)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  theme_classic()
+
+p4 <- tab_manchas %>% 
+  mutate(pred = lowess(manchas, f = f)$y) %>%
+  mutate(serie_sem_sazonalidade = manchas - pred) %>%
+  ggplot(aes(x = Ano)) +
+  geom_line(aes(y = serie_sem_sazonalidade), color = 'blue') +
+  labs(x = 'ano', y = 'manchas', title = expression(Z[t] - hat(S[t]))) +
+  theme_classic() + 
+  theme(legend.position = 'bottom')
+
+p3 / p4
+
+```
